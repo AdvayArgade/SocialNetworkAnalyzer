@@ -1,0 +1,3 @@
+D:/Advay/SY BTech/ADS/SocialNetworkAnalyzer/cmake-build-debug/CMakeFiles/SocialNetworkAnalyzer.dir
+D:/Advay/SY BTech/ADS/SocialNetworkAnalyzer/cmake-build-debug/CMakeFiles/edit_cache.dir
+D:/Advay/SY BTech/ADS/SocialNetworkAnalyzer/cmake-build-debug/CMakeFiles/rebuild_cache.dir
