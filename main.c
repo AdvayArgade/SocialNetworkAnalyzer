@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_USERS 100
+#define MAX_USERS 10000
 
 
 typedef struct {
@@ -57,6 +57,13 @@ Graph* createGraph(int num_users) {
 
 void addEdge(Graph* graph, int src, int dest) {
     //check if it's already there
+    AdjListNode *curr = graph->array[src].head;
+    for(; curr!=NULL; curr=curr->next){
+        if(curr->dest==dest){
+            printf("Edge already exists.\n");
+            return;
+        }
+    }
     //here we are inserting at the front of the linked list
 
     //create a new node for src adjacency list
@@ -126,38 +133,72 @@ void removeUser(Graph* graph, int userIndex) {
     }
 }
 
+#define MAX_LINE_LENGTH 1024
 int main() {
 
-    Graph* graph = createGraph(5);
+    Graph* graph = createGraph(MAX_USERS);
 
-  
-    user user1 = {"user1", "password1", "Sports", 25};
-    user user2 = {"user2", "password2", "Music", 30};
-    user user3 = {"user3", "password3", "Movies", 35};
-    user user4 = {"user4", "password4", "Books", 40};
-    user user5 = {"user5", "password5", "Travel", 45};
+    FILE *file;
+    char line[MAX_LINE_LENGTH];
+    char *name;
+    char *token;
 
-    addUser(graph, user1);
-    addUser(graph, user2);
-    addUser(graph, user3);
-    addUser(graph, user4);
-    addUser(graph, user5);
+    // Open the file for reading in text mode
+    file = fopen("../usernames.txt", "r");
+    if (file == NULL) {
+        printf("Error opening file!\n");
+        return 1;
+    }
 
-    printf("%s\n\n", graph->users[0].username);
-    addEdge(graph, 0, 1); 
-    addEdge(graph, 0, 3); 
-    addEdge(graph, 1, 2); 
-    addEdge(graph, 3, 4); 
+    char *interests[] = {
+            "Sports",
+            "Music",
+            "Movies",
+            "Books"
+    };
+    int numInterests = 4;
+    srand(42);
+    int min_age = 18, max_age = 90;
+    int age_range = max_age - min_age + 1;
 
+    user users[MAX_USERS]; // Replace MAX_USERS with your expected user count
+
+    int userIndex = 0;
+    // Read lines from the file until EOF (End Of File)
+    while (fgets(line, MAX_LINE_LENGTH, file) != NULL) {
+        // Remove trailing newline character if present
+        strtok(line, "\n");
+
+        // Use strtok to split the line into comma-separated names
+        token = strtok(line, ", ");
+        int interestIndex = 0;
+        while (token != NULL) {
+            name = token;
+
+            //create the struct
+            user* newUser = &users[userIndex++];
+            strcpy(newUser->username,name);
+            strcpy(newUser->password,name);
+            strcpy(newUser->interests, interests[interestIndex++ % numInterests]);
+            newUser->age = rand() % age_range + min_age;
+
+            addUser(graph, *newUser);
+            // Get the next token
+            token = strtok(NULL, ", ");
+        }
+    }
+
+    printf("Num users: %d", userIndex);
+    // Close the file
+    fclose(file);
+
+    for(int i = 0; i<userIndex*3; i++){
+        addEdge(graph, rand()%userIndex, rand()%userIndex);
+    }
 
     printGraph(graph);
 
-    removeUser(graph, 2);
-
-    
-    printf("\nGraph after removing user3:\n");
-    printGraph(graph);
-
+    free(graph->array);
     free(graph);
 
     return 0;
