@@ -251,6 +251,131 @@ int calculateCommunityDegree(Graph* graph, int* communities, int community) {
     return degree;
 }
 
+AdjListNode* insertInCommunity(int user, int community, Graph* graph){
+    AdjListNode* userNode = malloc(sizeof(AdjListNode));
+    userNode->dest = user;
+    AdjListNode* temp = graph->communities[community].head;
+    userNode->next = temp;
+    graph->communities[community].head = userNode;
+    return userNode;
+}
+
+void removeFromCommunity(int user, int community, Graph* graph){
+    AdjListNode *curr = graph->communities[community].head;
+    if(!curr) return;
+    //delete from the start
+    if(curr->dest==user){
+        AdjListNode *temp = curr->next;
+        free(graph->communities[community].head);
+        graph->communities[community].head = temp;
+        return;
+    }
+    AdjListNode *prev = curr;
+    curr = curr->next;
+    for(; curr; curr = curr->next, prev = prev->next){
+        if(curr->dest==user){
+            prev->next = curr->next;
+            free(curr);
+            return;
+        }
+    }
+}
+
+bool isInCommunity(int user, int community, Graph* graph){
+    AdjListNode *curr = graph->communities[community].head;
+    for(; curr; curr = curr->next){
+        if(curr->dest==user) return true;
+    }
+    return false;
+}
+
+void optimizeModularityAggressive(Graph* graph){
+    if(graph->communities==NULL) return;
+
+    for(int user = 0; user<graph->num_users; user++){
+        double maxModularity = INT_MIN;
+        int optimalCommunity = 0;
+        for(int community = 0; community<graph->num_communities; community++){
+            if(!isInCommunity(user, community, graph)) insertInCommunity(user, community, graph);
+            double modularity = calculateModularity(graph, community);
+            if(modularity>maxModularity){
+                maxModularity = modularity;
+                optimalCommunity = community;
+            }
+            removeFromCommunity(user, community, graph);
+        }
+        insertInCommunity(user, optimalCommunity, graph);
+        graph->users[user].community = optimalCommunity;
+    }
+}
+
+void optimizeModularityConservative(Graph* graph){
+    if(graph->communities==NULL) return;
+
+    for(int user = 0; user<graph->num_users; user++){
+        double maxModularity = INT_MIN;
+        int optimalCommunity = 0;
+        int originalCommunity = 0;
+        for(int community = 0; community<graph->num_communities; community++){
+            double prevModularity = calculateModularity(graph, community);
+            bool wasInCommunity = false;
+            if(isInCommunity(user, community, graph)){
+                wasInCommunity = true;
+                originalCommunity = community;
+            }
+            if(!wasInCommunity) insertInCommunity(user, community, graph);
+            double modularity = calculateModularity(graph, community);
+            if(modularity>maxModularity && prevModularity<=modularity){
+                maxModularity = modularity;
+                optimalCommunity = community;
+            }
+            if(!wasInCommunity) removeFromCommunity(user, community, graph);
+        }
+        if(optimalCommunity!=originalCommunity) insertInCommunity(user, optimalCommunity, graph);
+        graph->users[user].community = optimalCommunity;
+    }
+}
+
+void resetCommunnities(Graph* graph){
+    for(int i = 0; i<graph->num_users; i++){
+        AdjListNode *curr = graph->communities[i].head;
+        while(curr){
+            AdjListNode *temp = curr;
+            curr = curr->next;
+            free(temp);
+        }
+        AdjListNode *freshNode = malloc(sizeof(AdjListNode));
+        freshNode->dest = i;
+        freshNode->next = NULL;
+        graph->communities[i].head = freshNode;
+        graph->users[i].community = i;
+    }
+}
+
+void aggressiveOptimizationLoop(Graph* graph, int* increased, int* same){
+    double prevModularity[graph->num_communities];
+    for(int i = 0; i<graph->num_communities; i++){
+        double modularity = calculateModularity(graph, i);
+        prevModularity[i] = modularity;
+    }
+    
+    int prevIncreased = 0;
+    int prevSame = 0;
+    *increased = 0;
+    *same = 0;
+    while(1) {
+        optimizeModularityAggressive(graph);
+        *increased = *same = 0;
+        for(int i = 0; i<graph->num_communities; i++){
+            double modularity = calculateModularity(graph, i);
+            if(modularity>prevModularity[i]) (*increased)++;
+            if(modularity==prevModularity[i]) (*same)++;
+        }
+        if(*increased==prevIncreased && *same==prevSame) break;
+        prevIncreased = *increased;
+        prevSame = *same;
+    }
+}
 // Function for modularity optimization
 //void modularityOptimization(Graph* graph, int* communities, int numEdges) {
 //    int i, j;
@@ -339,6 +464,14 @@ void findPotentialUsers(Graph* graph, int userIndex) {
     }
 }
 
+bool isFriend(Graph* graph, int src, int dest){
+    AdjListNode *curr = graph->array[src].head;
+    while(curr){
+        if(curr->dest==dest) return true;
+        curr = curr->next;
+    }
+    return false;
+}
 
 #define MAX_LINE_LENGTH 1024
 int main() {
@@ -399,7 +532,7 @@ int main() {
 //    // Close the file
     fclose(file);
 
-    for(int i = 0; i<userIndex*3; i++){
+    for(int i = 0; i<userIndex*2; i++){
         addEdge(graph, rand()%userIndex, rand()%userIndex);
     }
 
@@ -407,37 +540,55 @@ int main() {
     printCommunities(graph);
     int* dist = (int*)malloc(graph->num_users * sizeof(int));
 
-    char searchName[50];
-    printf("Enter a name: ");
-    scanf("%s", searchName);
+//    char searchName[50];
+//    printf("Enter a name: ");
+//    scanf("%s", searchName);
+//
+//    int src = -1;
+//    for (int i = 0; i < graph->num_users; ++i) {
+//        if (strcmp(graph->users[i].username, searchName) == 0) {
+//            src = i;
+//            break;
+//        }
+//    }
 
-    int src = -1;
-    for (int i = 0; i < graph->num_users; ++i) {
-        if (strcmp(graph->users[i].username, searchName) == 0) {
-            src = i;
-            break;
-        }
-    }
-
-    if (src != -1) {
-        dijkstra(graph, src, dist);
-        printf("Users within distance <= 2 from %s:\n", searchName);
-        for (int i = 0; i < graph->num_users; ++i) {
-            if (dist[i] <= 2 && i != src)
-                printf("%s (Distance: %d)\n", graph->users[i].username, dist[i]);
-        }
-    } else {
-        printf("User not found.\n");
-    }
-
-    findPotentialUsers(graph, src);
-
-    free(dist);
+//    if (src != -1) {
+//        dijkstra(graph, src, dist);
+//        printf("Users within distance <= 2 from %s:\n", searchName);
+//        for (int i = 0; i < graph->num_users; ++i) {
+//            if (dist[i] == 2 && i != src && !isFriend(graph, src, i))
+//                printf("%s (Distance: %d)\n", graph->users[i].username, dist[i]);
+//        }
+//    } else {
+//        printf("User not found.\n");
+//    }
+//
+//    findPotentialUsers(graph, src);
+//
+//    free(dist);
 
     findTotalEdges(graph);
     printf("\nTotal edges: %d\n",(int)(edges/2));
-    for(int i = 0; i<graph->num_communities; i++)
-        printf("Modularity of community %d : %f\n", i, calculateModularity(graph, i));
+    double prevModularity[graph->num_communities];
+    for(int i = 0; i<graph->num_communities; i++){
+        double modularity = calculateModularity(graph, i);
+        printf("Modularity of community %d : %f\n", i, modularity);
+        prevModularity[i] = modularity;
+    }
+    int increased = 0; int same = 0;
+    aggressiveOptimizationLoop(graph, &increased, &same);
+//    resetCommunnities(graph);
+//    printCommunities(graph);
+//    aggressiveOptimizationLoop(graph, &increased, &same);
+    for(int i = 0; i<graph->num_communities; i++){
+        double modularity = calculateModularity(graph, i);
+        if(modularity>prevModularity[i]) increased++;
+        if(modularity==prevModularity[i]) same++;
+    }
+
+    printf("\nNumber of communities with increased modularity = %d\n", increased);
+    printf("Number of communities with increased or same modularity = %d\n", increased + same);
+
     free(graph->array);
     free(graph);
 
