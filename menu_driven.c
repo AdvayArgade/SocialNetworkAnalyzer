@@ -60,7 +60,7 @@ Graph* createGraph(int num_users) {
     graph->communities = malloc(num_users * sizeof(AdjList));
 
     for (int i = 0; i < num_users; ++i)
-        graph->array[i].head = NULL;
+        graph->array[i].head = NULL;    //insrets at head of adjlist
 
     for (int i = 0; i < graph->max_communities; ++i)
         graph->communities[i].head = NULL;
@@ -144,6 +144,7 @@ void printCommunities(Graph* graph) {
 bool isFriend(Graph* graph, int src, int dest);
 void dijkstra(Graph* graph, int src, int* dist);
 //add the communities check
+
 void removeUser(Graph* graph, int userIndex) {
     if (userIndex >= 0 && userIndex < graph->num_users) {
         
@@ -558,7 +559,7 @@ int main() {
     }
  int choice;
     do {
-        printf("\n------ MENU ------\n");
+        printf("\n------ Social Network Analyzer ------\n");
         printf("1. Print Graph\n");
         printf("2. Print Communities\n");
         printf("3. Optimize Modularity (Aggressive)\n");
@@ -566,7 +567,7 @@ int main() {
         printf("5. Find Potential Users\n");
         printf("6. Delete User\n");
         printf("7. Check if Two Users are Friends\n");
-        printf("8. Suggest a friend\n");
+        printf("8. Suggest friends\n");
         printf("9. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
@@ -632,7 +633,7 @@ int main() {
             
             
         }
-    } while (choice != 8);
+    } while (choice != 9);
 
     free(graph->array);
     free(graph);
